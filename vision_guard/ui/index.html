@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Laptop Sentinel</title>
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">LS</div>
+        <div>
+          <p>Laptop Sentinel</p>
+          <strong>Vision Guard</strong>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">总览</button>
+        <button class="nav-item" data-view="events">事件</button>
+        <button class="nav-item" data-view="settings">设置</button>
+      </nav>
+      <div class="sidebar-footer">
+        <span>本地模式</span>
+        <strong id="sideState">未连接</strong>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local Camera Sentinel</p>
+          <h1 id="viewTitle">安全总览</h1>
+        </div>
+        <div class="top-actions">
+          <button id="refreshBtn" class="ghost">刷新</button>
+          <button id="disarmBtn" class="secondary">撤防</button>
+          <button id="armBtn" class="primary">布防</button>
+        </div>
+      </header>
+
+      <p id="toast" class="toast" hidden></p>
+
+      <section class="view active" id="dashboardView">
+        <div class="hero-panel">
+          <div>
+            <span class="status-dot" id="statusDot"></span>
+            <p class="eyebrow">Current Mode</p>
+            <h2 id="stateText">加载中</h2>
+            <p id="stateHint">正在连接本地核心引擎。</p>
+          </div>
+          <div class="hero-metrics">
+            <div>
+              <span>摄像头</span>
+              <strong id="cameraText">-</strong>
+            </div>
+            <div>
+              <span>最近事件</span>
+              <strong id="lastEventText">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric">
+            <span>事件总数</span>
+            <strong id="totalEvents">0</strong>
+          </article>
+          <article class="metric">
+            <span>已保存</span>
+            <strong id="savedEvents">0</strong>
+          </article>
+          <article class="metric">
+            <span>失败事件</span>
+            <strong id="failedEvents">0</strong>
+          </article>
+          <article class="metric">
+            <span>录像状态</span>
+            <strong id="recordingText">空闲</strong>
+          </article>
+        </div>
+
+        <section class="section-head">
+          <h2>最近事件</h2>
+          <button class="link-button" data-view-shortcut="events">查看全部</button>
+        </section>
+        <div id="recentEvents" class="event-list compact"></div>
+      </section>
+
+      <section class="view" id="eventsView">
+        <section class="section-head">
+          <div>
+            <h2>事件时间线</h2>
+            <p>按触发时间倒序展示本地保存的安全事件。</p>
+          </div>
+          <button id="openStorageBtn" class="secondary">打开存储目录</button>
+        </section>
+        <div id="eventsList" class="event-list"></div>
+      </section>
+
+      <section class="view" id="settingsView">
+        <section class="section-head">
+          <div>
+            <h2>运行设置</h2>
+            <p>保存后立即写入配置文件；部分摄像头参数会在下一次布防时生效。</p>
+          </div>
+          <button id="saveSettingsBtn" class="primary">保存设置</button>
+        </section>
+
+        <form id="settingsForm" class="settings-grid">
+          <fieldset>
+            <legend>摄像头</legend>
+            <label>
+              <span>摄像头编号</span>
+              <input type="number" min="0" step="1" data-path="camera.camera_id">
+            </label>
+            <label>
+              <span>采集 FPS</span>
+              <input type="number" min="1" max="60" step="1" data-path="camera.capture_fps">
+            </label>
+            <label>
+              <span>检测 FPS</span>
+              <input type="number" min="1" max="30" step="1" data-path="camera.detect_fps">
+            </label>
+            <label>
+              <span>画面宽度</span>
+              <input type="number" min="160" max="3840" step="1" data-path="camera.frame_width">
+            </label>
+            <label>
+              <span>画面高度</span>
+              <input type="number" min="120" max="2160" step="1" data-path="camera.frame_height">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>运动检测</legend>
+            <label>
+              <span>触发阈值</span>
+              <input type="number" min="1" step="100" data-path="motion.motion_sensitivity">
+            </label>
+            <label>
+              <span>最小运动面积</span>
+              <input type="number" min="1" step="50" data-path="motion.min_contour_area">
+            </label>
+            <label>
+              <span>像素差阈值</span>
+              <input type="number" min="1" max="255" step="1" data-path="motion.threshold_value">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>录像</legend>
+            <label>
+              <span>触发后秒数</span>
+              <input type="number" min="1" max="300" step="1" data-path="recording.record_duration">
+            </label>
+            <label>
+              <span>预录制</span>
+              <select data-path="recording.pre_record_enabled">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+            </label>
+            <label>
+              <span>预录制秒数</span>
+              <input type="number" min="0" max="30" step="1" data-path="recording.pre_record_seconds">
+            </label>
+            <label>
+              <span>冷却秒数</span>
+              <input type="number" min="0" max="600" step="1" data-path="recording.cooldown_seconds">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>界面与调试</legend>
+            <label>
+              <span>窗口宽度</span>
+              <input type="number" min="900" max="2400" step="10" data-path="ui.window_width">
+            </label>
+            <label>
+              <span>窗口高度</span>
+              <input type="number" min="620" max="1600" step="10" data-path="ui.window_height">
+            </label>
+            <label>
+              <span>调试预览</span>
+              <select data-path="debug.debug_preview">
+                <option value="false">关闭</option>
+                <option value="true">开启</option>
+              </select>
+            </label>
+            <label>
+              <span>日志级别</span>
+              <select data-path="debug.log_level">
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

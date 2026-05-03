@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+pytest-cache-files*/
+tests_runtime/
+.mypy_cache/
+.ruff_cache/
+.venv/
+/logs/
+/storage/
+/config.json
+config.local.json
+.vscode/
+*.tmp
