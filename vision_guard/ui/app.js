@@ -51,6 +51,12 @@ const els = {
   savedEvents: document.querySelector('#savedEvents'),
   failedEvents: document.querySelector('#failedEvents'),
   recordingText: document.querySelector('#recordingText'),
+  previewToggle: document.querySelector('#previewToggle'),
+  previewImage: document.querySelector('#previewImage'),
+  cameraStage: document.querySelector('#cameraStage'),
+  previewOverlay: document.querySelector('#previewOverlay'),
+  previewFpsText: document.querySelector('#previewFpsText'),
+  previewFrameText: document.querySelector('#previewFrameText'),
   recentEvents: document.querySelector('#recentEvents'),
   eventsList: document.querySelector('#eventsList'),
   armBtn: document.querySelector('#armBtn'),
@@ -63,6 +69,12 @@ const els = {
 
 let latestConfig = null;
 let currentView = 'dashboard';
+let latestStatus = null;
+let previewEnabled = false;
+let previewTimer = null;
+let previewBusy = false;
+let previewActiveSent = null;
+let previewHasFrame = false;
 
 async function callApi(method, ...args) {
   await apiReady;
@@ -97,9 +109,11 @@ function setView(name) {
   els.viewTitle.textContent = viewTitle[name];
   els.navItems.forEach(item => item.classList.toggle('active', item.dataset.view === name));
   Object.entries(els.views).forEach(([key, node]) => node.classList.toggle('active', key === name));
+  schedulePreviewLoop();
 }
 
 function renderStatus(status) {
+  latestStatus = status;
   const state = status.state || 'error';
   els.sideState.textContent = stateLabel[state] || state;
   els.stateText.textContent = stateLabel[state] || state;
@@ -110,6 +124,9 @@ function renderStatus(status) {
   els.statusDot.className = `status-dot ${state}`;
   els.armBtn.disabled = ['armed', 'arming', 'triggered', 'cooldown'].includes(state);
   els.disarmBtn.disabled = ['disarmed', 'stopped'].includes(state);
+  els.previewFpsText.textContent = `上限 ${status.capture_fps || '-'} FPS`;
+  updatePreviewOverlay(null, { preserveFrame: true });
+  schedulePreviewLoop();
 }
 
 function renderStats(stats) {
@@ -188,6 +205,101 @@ async function refreshAll() {
   }
 }
 
+function previewShouldRun() {
+  if (!previewEnabled || currentView !== 'dashboard') return false;
+  if (document.hidden) return false;
+  const state = latestStatus?.state;
+  return ['armed', 'triggered', 'cooldown', 'arming'].includes(state);
+}
+
+function previewIntervalMs() {
+  const fps = Math.max(1, Number(latestStatus?.capture_fps || latestConfig?.camera?.capture_fps || 10));
+  return Math.max(33, Math.round(1000 / fps));
+}
+
+function schedulePreviewLoop() {
+  if (previewTimer) {
+    window.clearTimeout(previewTimer);
+    previewTimer = null;
+  }
+  const shouldRun = previewShouldRun();
+  syncPreviewActive(shouldRun);
+  if (!shouldRun) {
+    updatePreviewOverlay();
+    return;
+  }
+  previewTimer = window.setTimeout(fetchPreviewFrame, previewIntervalMs());
+}
+
+function syncPreviewActive(active) {
+  if (previewActiveSent === active) return;
+  previewActiveSent = active;
+  apiReady.then(() => window.pywebview.api.set_preview_active(active)).catch(() => {
+    previewActiveSent = null;
+  });
+}
+
+async function fetchPreviewFrame() {
+  if (!previewShouldRun() || previewBusy) {
+    schedulePreviewLoop();
+    return;
+  }
+  previewBusy = true;
+  try {
+    const result = await callApi('get_preview_frame');
+    const frame = result.frame;
+    if (frame.available && frame.image) {
+      els.previewImage.src = frame.image;
+      els.cameraStage.classList.add('active');
+      previewHasFrame = true;
+      els.previewFrameText.textContent = frame.captured_at ? fmtTime(frame.captured_at) : '实时帧';
+    } else {
+      if (!previewHasFrame) {
+        els.cameraStage.classList.remove('active');
+        els.previewFrameText.textContent = '等待帧';
+      }
+    }
+    updatePreviewOverlay(frame, { preserveFrame: true });
+  } catch {
+    els.previewFrameText.textContent = '预览错误';
+  } finally {
+    previewBusy = false;
+    schedulePreviewLoop();
+  }
+}
+
+function updatePreviewOverlay(frame = null, options = {}) {
+  if (previewShouldRun() && frame?.available) {
+    els.previewOverlay.innerHTML = '<strong>实时预览中</strong><span>画面来自后台捕捉引擎，不会额外占用摄像头。</span>';
+    return;
+  }
+  const preserveFrame = options.preserveFrame && previewHasFrame && previewShouldRun();
+  if (!preserveFrame) {
+    els.cameraStage.classList.remove('active');
+  }
+  if (!previewEnabled) {
+    previewHasFrame = false;
+    els.previewImage.removeAttribute('src');
+    els.previewOverlay.innerHTML = '<strong>预览关闭</strong><span>打开开关后，将从后台捕捉引擎读取实时画面。</span>';
+    els.previewFrameText.textContent = '等待帧';
+    return;
+  }
+  if (currentView !== 'dashboard' || document.hidden) {
+    els.previewOverlay.innerHTML = '<strong>预览暂停</strong><span>离开总览页或窗口不可见时不会渲染画面。</span>';
+    return;
+  }
+  if (!latestStatus?.camera_ready) {
+    previewHasFrame = false;
+    els.previewImage.removeAttribute('src');
+    els.previewOverlay.innerHTML = '<strong>等待摄像头</strong><span>点击布防后，后台引擎会提供实时画面。</span>';
+    return;
+  }
+  if (preserveFrame) {
+    return;
+  }
+  els.previewOverlay.innerHTML = '<strong>等待画面</strong><span>摄像头已连接，正在获取最近帧。</span>';
+}
+
 async function loadConfig() {
   const result = await callApi('get_config');
   latestConfig = result.config;
@@ -195,14 +307,23 @@ async function loadConfig() {
 }
 
 function fillSettingsForm(config) {
+  applyTheme(config?.ui?.theme || 'studio');
   els.settingsForm.querySelectorAll('[data-path]').forEach(input => {
-    const value = getPath(config, input.dataset.path);
+    let value = getPath(config, input.dataset.path);
+    if (input.dataset.path === 'ui.theme' && value === 'dark') {
+      value = 'studio';
+    }
     if (input.tagName === 'SELECT') {
       input.value = String(value);
     } else {
       input.value = value;
     }
   });
+}
+
+function applyTheme(theme) {
+  const normalized = theme === 'dark' ? 'studio' : theme;
+  document.body.dataset.theme = normalized || 'studio';
 }
 
 function collectSettingsPatch() {
@@ -263,6 +384,20 @@ els.disarmBtn.addEventListener('click', async () => {
 
 els.refreshBtn.addEventListener('click', refreshAll);
 
+els.previewToggle.addEventListener('change', () => {
+  previewEnabled = els.previewToggle.checked;
+  updatePreviewOverlay();
+  schedulePreviewLoop();
+});
+
+els.settingsForm.addEventListener('change', event => {
+  if (event.target?.dataset?.path === 'ui.theme') {
+    applyTheme(event.target.value);
+  }
+});
+
+document.addEventListener('visibilitychange', schedulePreviewLoop);
+
 els.openStorageBtn.addEventListener('click', async () => {
   try {
     await callApi('reveal_storage');
@@ -275,6 +410,7 @@ els.saveSettingsBtn.addEventListener('click', async () => {
   try {
     const result = await callApi('save_config', collectSettingsPatch());
     latestConfig = result.config;
+    applyTheme(result.config?.ui?.theme);
     fillSettingsForm(result.config);
     renderStatus(result.status);
     showToast('设置已保存');

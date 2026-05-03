@@ -25,7 +25,7 @@
     "window_width": 1180,
     "window_height": 760,
     "frameless": false,
-    "theme": "dark"
+    "theme": "studio"
   },
   "debug": {
     "debug_preview": false,

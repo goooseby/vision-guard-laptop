@@ -46,7 +46,7 @@ class UiConfig(BaseModel):
     window_width: int = Field(default=1180, ge=900, le=2400)
     window_height: int = Field(default=760, ge=620, le=1600)
     frameless: bool = False
-    theme: str = "dark"
+    theme: str = "studio"
 
 
 class DebugConfig(BaseModel):

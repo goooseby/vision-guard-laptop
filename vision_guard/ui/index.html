@@ -30,7 +30,7 @@
     <section class="workspace">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Local Camera Sentinel</p>
+          <p class="eyebrow">本地监控</p>
           <h1 id="viewTitle">安全总览</h1>
         </div>
         <div class="top-actions">
@@ -43,23 +43,50 @@
       <p id="toast" class="toast" hidden></p>
 
       <section class="view active" id="dashboardView">
-        <div class="hero-panel">
-          <div>
-            <span class="status-dot" id="statusDot"></span>
-            <p class="eyebrow">Current Mode</p>
-            <h2 id="stateText">加载中</h2>
-            <p id="stateHint">正在连接本地核心引擎。</p>
-          </div>
-          <div class="hero-metrics">
+        <div class="overview-grid">
+          <div class="hero-panel">
             <div>
-              <span>摄像头</span>
-              <strong id="cameraText">-</strong>
+              <span class="status-dot" id="statusDot"></span>
+              <p class="eyebrow">运行状态</p>
+              <h2 id="stateText">加载中</h2>
+              <p id="stateHint">正在连接本地核心引擎。</p>
             </div>
-            <div>
-              <span>最近事件</span>
-              <strong id="lastEventText">-</strong>
+            <div class="hero-metrics">
+              <div>
+                <span>摄像头</span>
+                <strong id="cameraText">-</strong>
+              </div>
+              <div>
+                <span>最近事件</span>
+                <strong id="lastEventText">-</strong>
+              </div>
             </div>
           </div>
+
+          <section class="preview-panel">
+            <header class="preview-head">
+              <div>
+                <p class="eyebrow">摄像头预览</p>
+                <h2>实时视窗</h2>
+              </div>
+              <label class="switch">
+                <input id="previewToggle" type="checkbox">
+                <span></span>
+                <strong>预览</strong>
+              </label>
+            </header>
+            <div class="camera-stage" id="cameraStage">
+              <img id="previewImage" alt="摄像头实时画面">
+              <div class="preview-overlay" id="previewOverlay">
+                <strong>预览关闭</strong>
+                <span>打开开关后，将从后台捕捉引擎读取实时画面。</span>
+              </div>
+            </div>
+            <footer class="preview-foot">
+              <span id="previewFpsText">上限 - FPS</span>
+              <span id="previewFrameText">等待帧</span>
+            </footer>
+          </section>
         </div>
 
         <div class="metric-grid">
@@ -181,6 +208,14 @@
             <label>
               <span>窗口高度</span>
               <input type="number" min="620" max="1600" step="10" data-path="ui.window_height">
+            </label>
+            <label>
+              <span>界面主题</span>
+              <select data-path="ui.theme">
+                <option value="studio">Studio</option>
+                <option value="graphite">Graphite</option>
+                <option value="sentinel">Sentinel</option>
+              </select>
             </label>
             <label>
               <span>调试预览</span>

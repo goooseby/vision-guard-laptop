@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import logging
 import sys
 import threading
@@ -33,8 +34,11 @@ class MonitorEngine:
         self._state = EngineState.DISARMED
         self._camera_ready = False
         self._recording = False
+        self._preview_active = False
         self._last_error: str | None = None
         self._last_event_at: str | None = None
+        self._latest_frame: np.ndarray | None = None
+        self._latest_frame_at: str | None = None
         self._started_at = datetime.now().astimezone().isoformat()
         self._thread: threading.Thread | None = None
 
@@ -83,7 +87,66 @@ class MonitorEngine:
                 last_error=self._last_error,
                 started_at=self._started_at,
                 recording=self._recording,
+                preview_available=self._latest_frame is not None,
+                preview_active=self._preview_active,
+                capture_fps=self.config.camera.capture_fps,
             )
+
+    def set_preview_active(self, active: bool) -> dict[str, Any]:
+        with self._lock:
+            self._preview_active = active
+            if not active:
+                self._latest_frame = None
+                self._latest_frame_at = None
+        return self.snapshot().to_dict()
+
+    def preview_frame(self, *, max_width: int = 960, jpeg_quality: int = 78) -> dict[str, Any]:
+        with self._lock:
+            preview_active = self._preview_active
+            frame = None if self._latest_frame is None else self._latest_frame.copy()
+            captured_at = self._latest_frame_at
+            state = self._state.value
+            camera_ready = self._camera_ready
+
+        if not preview_active or frame is None:
+            return {
+                "available": False,
+                "preview_active": preview_active,
+                "state": state,
+                "camera_ready": camera_ready,
+                "captured_at": captured_at,
+                "image": "",
+            }
+
+        if max_width > 0 and frame.shape[1] > max_width:
+            scale = max_width / frame.shape[1]
+            frame = cv2.resize(frame, (max_width, int(frame.shape[0] * scale)))
+
+        ok, encoded = cv2.imencode(
+            ".jpg",
+            frame,
+            [int(cv2.IMWRITE_JPEG_QUALITY), max(35, min(95, jpeg_quality))],
+        )
+        if not ok:
+            return {
+                "available": False,
+                "preview_active": preview_active,
+                "state": state,
+                "camera_ready": camera_ready,
+                "captured_at": captured_at,
+                "image": "",
+            }
+
+        return {
+            "available": True,
+            "preview_active": preview_active,
+            "state": state,
+            "camera_ready": camera_ready,
+            "captured_at": captured_at,
+            "width": int(frame.shape[1]),
+            "height": int(frame.shape[0]),
+            "image": base64.b64encode(encoded.tobytes()).decode("ascii"),
+        }
 
     def _run(self) -> None:
         camera: cv2.VideoCapture | None = None
@@ -97,6 +160,7 @@ class MonitorEngine:
                 pre_buffer.clear()
                 camera = self._release_camera(camera)
                 self._set_camera_ready(False)
+                self._set_latest_frame(None)
                 self._set_state(EngineState.DISARMED)
                 self._sleep(0.2)
                 continue
@@ -117,6 +181,8 @@ class MonitorEngine:
                 pre_buffer.clear()
                 self._sleep(1.0)
                 continue
+
+            self._remember_preview_frame(frame)
 
             if self.config.recording.pre_record_enabled:
                 pre_buffer.append(frame.copy())
@@ -156,6 +222,7 @@ class MonitorEngine:
 
         self._release_camera(camera)
         self._set_camera_ready(False)
+        self._set_latest_frame(None)
         if self.config.debug.debug_preview:
             cv2.destroyAllWindows()
 
@@ -283,6 +350,7 @@ class MonitorEngine:
                 if not ok or frame is None:
                     LOGGER.warning("Camera read failed during recording")
                     break
+                self._remember_preview_frame(frame)
                 writer.write(self._resize_if_needed(frame, width, height))
                 written_frames += 1
                 self._sleep(self._capture_interval())
@@ -358,6 +426,17 @@ class MonitorEngine:
     def _set_camera_ready(self, ready: bool) -> None:
         with self._lock:
             self._camera_ready = ready
+
+    def _set_latest_frame(self, frame: np.ndarray | None) -> None:
+        with self._lock:
+            self._latest_frame = None if frame is None else frame.copy()
+            self._latest_frame_at = None if frame is None else datetime.now().astimezone().isoformat()
+
+    def _remember_preview_frame(self, frame: np.ndarray) -> None:
+        with self._lock:
+            active = self._preview_active
+        if active:
+            self._set_latest_frame(frame)
 
     def _set_recording(self, recording: bool) -> None:
         with self._lock:

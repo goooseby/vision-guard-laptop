@@ -24,6 +24,15 @@ class BridgeApi:
     def get_status(self) -> dict[str, Any]:
         return {"ok": True, "status": self.app.engine.snapshot().to_dict()}
 
+    def get_preview_frame(self) -> dict[str, Any]:
+        frame = self.app.engine.preview_frame(max_width=960, jpeg_quality=78)
+        if frame.get("image"):
+            frame["image"] = f"data:image/jpeg;base64,{frame['image']}"
+        return {"ok": True, "frame": frame}
+
+    def set_preview_active(self, active: bool) -> dict[str, Any]:
+        return {"ok": True, "status": self.app.engine.set_preview_active(bool(active))}
+
     def arm(self) -> dict[str, Any]:
         return {"ok": True, "status": self.app.engine.arm()}
 

@@ -51,6 +51,9 @@ class EngineSnapshot:
     last_error: str | None
     started_at: str
     recording: bool
+    preview_available: bool
+    preview_active: bool
+    capture_fps: int
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
