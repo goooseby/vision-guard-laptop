@@ -8,27 +8,31 @@ from pathlib import Path
 from vision_guard.config import AppConfig
 from vision_guard.core.engine import MonitorEngine
 from vision_guard.core.events import EventService
+from vision_guard.paths import AppPaths
 from vision_guard.storage.database import EventDatabase
 
 
 class Application:
     def __init__(self, project_root: Path, config_path: Path | None = None):
         self.project_root = project_root
-        self.config_path = config_path or project_root / "config.json"
+        self.paths = AppPaths.resolve(project_root, config_path)
+        self.runtime_root = self.paths.data_root
+        self.log_root = self.paths.log_root
+        self.config_path = self.paths.config_path
         self.config = AppConfig.load(project_root, self.config_path)
         self._setup_directories()
         self._setup_logging()
 
-        self.database = EventDatabase(self.config.storage_dir(project_root) / "events.sqlite3")
+        self.database = EventDatabase(self.config.storage_dir(self.runtime_root) / "events.sqlite3")
         self.events = EventService(
             database=self.database,
-            project_root=self.project_root,
+            project_root=self.runtime_root,
             config=self.config,
         )
         self.engine = MonitorEngine(
             config=self.config,
             database=self.database,
-            project_root=self.project_root,
+            project_root=self.runtime_root,
         )
         self._shutdown = False
 
@@ -47,14 +51,14 @@ class Application:
     def save_config(self, config: AppConfig) -> None:
         self.config = config
         self.engine.config = config
-        self.engine.storage_dir = config.storage_dir(self.project_root)
+        self.engine.storage_dir = config.storage_dir(self.runtime_root)
         self.engine.storage_dir.mkdir(parents=True, exist_ok=True)
         self.events.set_config(config)
         config.save(self.config_path)
 
     def _setup_directories(self) -> None:
-        self.config.storage_dir(self.project_root).mkdir(parents=True, exist_ok=True)
-        self.config.log_dir(self.project_root).mkdir(parents=True, exist_ok=True)
+        self.config.storage_dir(self.runtime_root).mkdir(parents=True, exist_ok=True)
+        self.config.log_dir(self.log_root).mkdir(parents=True, exist_ok=True)
 
     def _setup_logging(self) -> None:
         level = getattr(logging, self.config.debug.log_level.upper(), logging.INFO)
@@ -70,7 +74,7 @@ class Application:
         root.addHandler(console)
 
         file_handler = RotatingFileHandler(
-            self.config.log_dir(self.project_root) / "vision_guard.log",
+            self.config.log_dir(self.log_root) / "vision_guard.log",
             maxBytes=2_000_000,
             backupCount=3,
             encoding="utf-8",

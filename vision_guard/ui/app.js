@@ -81,6 +81,10 @@ const els = {
   saveSettingsBtn: document.querySelector('#saveSettingsBtn'),
   settingsForm: document.querySelector('#settingsForm'),
   resetRoiBtn: document.querySelector('#resetRoiBtn'),
+  settingNavItems: document.querySelectorAll('.settings-nav-item'),
+  configPathText: document.querySelector('#configPathText'),
+  dataRootText: document.querySelector('#dataRootText'),
+  logRootText: document.querySelector('#logRootText'),
 };
 
 let latestConfig = null;
@@ -431,6 +435,7 @@ async function loadConfig() {
   const result = await callApi('get_config');
   latestConfig = result.config;
   fillSettingsForm(result.config);
+  renderRuntimeLocations(result.locations);
   updateDetectionOverlays(latestStatus);
 }
 
@@ -455,6 +460,13 @@ function fillSettingsForm(config) {
 function applyTheme(theme) {
   const normalized = theme === 'dark' ? 'studio' : theme;
   document.body.dataset.theme = normalized || 'studio';
+}
+
+function renderRuntimeLocations(locations) {
+  if (!locations) return;
+  els.configPathText.textContent = locations.config_path || '-';
+  els.dataRootText.textContent = locations.data_root || '-';
+  els.logRootText.textContent = locations.log_root || '-';
 }
 
 function collectSettingsPatch() {
@@ -544,6 +556,7 @@ async function saveRoi(roi) {
     } });
     latestConfig = result.config;
     fillSettingsForm(result.config);
+    renderRuntimeLocations(result.locations);
     renderStatus(result.status);
     showToast('检测区域已更新');
   } catch (error) {
@@ -557,6 +570,15 @@ els.navItems.forEach(item => {
 
 document.querySelectorAll('[data-view-shortcut]').forEach(item => {
   item.addEventListener('click', () => setView(item.dataset.viewShortcut));
+});
+
+els.settingNavItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const target = document.querySelector(`#${item.dataset.settingsTarget}`);
+    if (!target) return;
+    els.settingNavItems.forEach(nav => nav.classList.toggle('active', nav === item));
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 });
 
 els.armBtn.addEventListener('click', async () => {
@@ -607,6 +629,7 @@ els.resetRoiBtn.addEventListener('click', async () => {
     } });
     latestConfig = result.config;
     fillSettingsForm(result.config);
+    renderRuntimeLocations(result.locations);
     renderStatus(result.status);
     showToast('检测区域已重置为全画面');
   } catch (error) {
@@ -699,6 +722,7 @@ els.saveSettingsBtn.addEventListener('click', async () => {
     latestConfig = result.config;
     applyTheme(result.config?.ui?.theme);
     fillSettingsForm(result.config);
+    renderRuntimeLocations(result.locations);
     renderStatus(result.status);
     showToast('设置已保存');
   } catch (error) {

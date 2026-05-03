@@ -39,6 +39,13 @@
     "frameless": false,
     "theme": "studio"
   },
+  "desktop": {
+    "close_to_tray": true,
+    "minimize_to_tray": true,
+    "single_instance": true,
+    "single_instance_port": 47861,
+    "start_on_login": false
+  },
   "debug": {
     "debug_preview": false,
     "log_level": "INFO"

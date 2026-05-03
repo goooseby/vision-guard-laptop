@@ -70,6 +70,14 @@ class UiConfig(BaseModel):
     theme: str = "studio"
 
 
+class DesktopConfig(BaseModel):
+    close_to_tray: bool = True
+    minimize_to_tray: bool = True
+    single_instance: bool = True
+    single_instance_port: int = Field(default=47861, ge=1024, le=65535)
+    start_on_login: bool = False
+
+
 class DebugConfig(BaseModel):
     debug_preview: bool = False
     log_level: str = "INFO"
@@ -82,12 +90,14 @@ class AppConfig(BaseModel):
     paths: PathConfig = Field(default_factory=PathConfig)
     retention: RetentionConfig = Field(default_factory=RetentionConfig)
     ui: UiConfig = Field(default_factory=UiConfig)
+    desktop: DesktopConfig = Field(default_factory=DesktopConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
 
     @classmethod
     def load(cls, project_root: Path, config_path: Path | None = None) -> AppConfig:
         path = config_path or project_root / "config.json"
         if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
             example = project_root / "config.example.json"
             if example.exists():
                 shutil.copyfile(example, path)
@@ -105,11 +115,11 @@ class AppConfig(BaseModel):
             encoding="utf-8",
         )
 
-    def storage_dir(self, project_root: Path) -> Path:
-        return resolve_user_path(project_root, self.paths.storage_path)
+    def storage_dir(self, base_root: Path) -> Path:
+        return resolve_user_path(base_root, self.paths.storage_path)
 
-    def log_dir(self, project_root: Path) -> Path:
-        return resolve_user_path(project_root, self.paths.log_path)
+    def log_dir(self, base_root: Path) -> Path:
+        return resolve_user_path(base_root, self.paths.log_path)
 
 
 def resolve_user_path(project_root: Path, value: str) -> Path:

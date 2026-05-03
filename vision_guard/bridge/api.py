@@ -13,6 +13,8 @@ from pydantic import ValidationError
 
 from vision_guard.app import Application
 from vision_guard.config import AppConfig
+from vision_guard.desktop import set_start_on_login, startup_command
+from vision_guard.paths import runtime_locations
 
 LOGGER = logging.getLogger(__name__)
 
@@ -75,7 +77,11 @@ class BridgeApi:
         return {"ok": True}
 
     def get_config(self) -> dict[str, Any]:
-        return {"ok": True, "config": self.app.config.model_dump()}
+        return {
+            "ok": True,
+            "config": self.app.config.model_dump(),
+            "locations": runtime_locations(self.app.paths, self.app.config),
+        }
 
     def save_config(self, patch: dict[str, Any]) -> dict[str, Any]:
         current = deepcopy(self.app.config.model_dump())
@@ -85,10 +91,23 @@ class BridgeApi:
         except ValidationError as exc:
             return {"ok": False, "error": readable_validation_error(exc)}
         self.app.save_config(config)
-        return {"ok": True, "config": config.model_dump(), "status": self.app.engine.snapshot().to_dict()}
+        try:
+            set_start_on_login(
+                enabled=config.desktop.start_on_login,
+                command=startup_command(self.app.project_root, self.app.config_path),
+            )
+        except Exception as exc:  # noqa: BLE001 - config should still be saved
+            LOGGER.exception("Failed to update startup setting")
+            return {"ok": False, "error": f"开机自启设置失败：{exc}"}
+        return {
+            "ok": True,
+            "config": config.model_dump(),
+            "locations": runtime_locations(self.app.paths, config),
+            "status": self.app.engine.snapshot().to_dict(),
+        }
 
     def reveal_storage(self) -> dict[str, Any]:
-        path = self.app.config.storage_dir(self.app.project_root)
+        path = self.app.config.storage_dir(self.app.runtime_root)
         path.mkdir(parents=True, exist_ok=True)
         try:
             open_with_default_player(path)
@@ -100,7 +119,7 @@ class BridgeApi:
         path = Path(value)
         if path.is_absolute():
             return path
-        return self.app.project_root / path
+        return self.app.runtime_root / path
 
     def _thumbnail_data_url(self, path: Path) -> str:
         if not path.exists() or not path.is_file():

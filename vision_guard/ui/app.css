@@ -662,36 +662,208 @@ fieldset,
   text-align: center;
 }
 
-.settings-grid {
+.settings-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 34px;
+  min-height: 640px;
+  padding: 4px 0 48px;
 }
 
-fieldset {
+.settings-nav {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.settings-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 8px 18px;
+  border-bottom: 1px solid color-mix(in srgb, #ffffff 9%, transparent);
+}
+
+.settings-logo img {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.settings-logo strong,
+.settings-logo span {
+  display: block;
+}
+
+.settings-logo strong {
+  color: #f4f7fb;
+  font-size: 15px;
+}
+
+.settings-logo span {
+  margin-top: 3px;
+  color: #8e98a6;
+  font-size: 12px;
+}
+
+.settings-nav-item {
+  justify-content: flex-start;
+  height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #a7b0bd;
+  text-align: left;
+  transform: none;
+}
+
+.settings-nav-item:hover,
+.settings-nav-item.active {
+  background: rgba(255, 255, 255, .07);
+  color: #f4f7fb;
+}
+
+.settings-content {
   min-width: 0;
+  max-width: 860px;
+  padding: 2px 0 28px;
+}
+
+#settingsView {
+  min-height: calc(100vh - 150px);
+  margin: -8px -10px 0;
+  padding: 8px 10px 34px;
+  border-radius: 10px;
+  background: #111418;
+  color: #dbe3ee;
+}
+
+#settingsView .section-head {
+  max-width: 1096px;
+}
+
+#settingsView .section-head h2,
+#settingsView .section-head p {
+  color: #f4f7fb;
+}
+
+#settingsView .section-head p {
+  color: #8e98a6;
+}
+
+.setting-section {
+  scroll-margin-top: 24px;
+  padding: 0 0 42px;
+}
+
+.setting-section + .setting-section {
+  padding-top: 14px;
+}
+
+.setting-section header {
+  padding: 0 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+.setting-section h3 {
   margin: 0;
-  padding: 18px;
+  color: #f4f7fb;
+  font-size: 22px;
+  font-weight: 720;
 }
 
-legend {
-  padding: 0 8px;
-  color: var(--muted);
-  font-weight: 760;
-}
-
-.settings-grid label {
-  display: grid;
-  gap: 7px;
-  margin-top: 14px;
-  color: var(--muted);
+.setting-section header p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #8e98a6;
   font-size: 13px;
+  line-height: 1.65;
+}
+
+.setting-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 300px);
+  gap: 6px 28px;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+.setting-item > strong {
+  color: #edf2f7;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.setting-item > span {
+  grid-column: 1;
+  color: #8e98a6;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.setting-item > input,
+.setting-item > select,
+.setting-item > .roi-grid {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.runtime-paths {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 4px;
+  padding: 14px 0;
+}
+
+.runtime-paths div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.runtime-paths span {
+  color: #8e98a6;
+  font-size: 12px;
+}
+
+.runtime-paths strong {
+  min-width: 0;
+  color: #c9d2df;
+  font-size: 12px;
+  font-weight: 560;
+  overflow-wrap: anywhere;
+}
+
+#settingsView input,
+#settingsView select {
+  border-color: transparent;
+  background: #1b222b;
+  color: #edf2f7;
+}
+
+#settingsView input:focus,
+#settingsView select:focus {
+  outline: 2px solid rgba(138, 180, 255, .28);
+  border-color: rgba(138, 180, 255, .62);
+}
+
+#settingsView .secondary {
+  width: max-content;
+  border: 0;
+  background: #202833;
+  color: #dbe3ee;
 }
 
 .roi-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 10px;
+  gap: 8px;
 }
 
 input, select {
@@ -715,7 +887,15 @@ select:focus {
   .overview-grid { grid-template-columns: 1fr; }
   .metric-grid, .storage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-bar { grid-template-columns: 1fr 1fr; }
-  .settings-grid { grid-template-columns: 1fr; }
+  .settings-layout { grid-template-columns: 1fr; }
+  .settings-nav { position: static; }
+  .setting-item { grid-template-columns: 1fr; }
+  .setting-item > input,
+  .setting-item > select,
+  .setting-item > .roi-grid {
+    grid-column: 1;
+    grid-row: auto;
+  }
   .motion-meter { grid-template-columns: 1fr; }
   .event { grid-template-columns: 28px 140px minmax(0, 1fr); }
   .event button { grid-column: 1 / -1; }

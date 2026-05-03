@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import shutil
+import socket
+import threading
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -12,6 +14,8 @@ from vision_guard.config import AppConfig
 from vision_guard.core.engine import MonitorEngine
 from vision_guard.core.events import EventService
 from vision_guard.core.models import EventRecord, EventStatus
+from vision_guard.desktop import SingleInstance, startup_command
+from vision_guard.paths import migrate_legacy_config
 from vision_guard.storage.database import EventDatabase
 
 
@@ -28,9 +32,33 @@ def test_config_is_created_from_defaults():
     config = AppConfig.load(root)
 
     assert config.camera.camera_id == 0
+    assert config.desktop.close_to_tray is True
+    assert config.desktop.single_instance is True
     assert (root / "config.json").exists()
     assert config.storage_dir(root) == root / "storage"
     shutil.rmtree(root)
+
+
+def test_single_instance_notifies_existing_window():
+    event = threading.Event()
+    port = free_tcp_port()
+    first = SingleInstance(port=port, on_show=event.set)
+    second = SingleInstance(port=port, on_show=lambda: None)
+
+    try:
+        assert first.acquire() is True
+        assert second.acquire() is False
+        assert second.notify_existing() is True
+        assert event.wait(timeout=1)
+    finally:
+        first.close()
+        second.close()
+
+
+def free_tcp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+        server.bind(("127.0.0.1", 0))
+        return int(server.getsockname()[1])
 
 
 def test_motion_roi_must_stay_inside_frame():
@@ -46,6 +74,45 @@ def test_motion_roi_must_stay_inside_frame():
                 }
             }
         )
+
+
+def test_legacy_config_migration_preserves_existing_storage():
+    root = runtime_dir()
+    legacy_storage = root / "storage"
+    legacy_storage.mkdir()
+    legacy_config = root / "config.json"
+    target_config = root / "desktop-config" / "config.json"
+    legacy_config.write_text(
+        """
+{
+  "paths": {
+    "storage_path": "storage",
+    "log_path": "logs"
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    migrate_legacy_config(
+        legacy_config=legacy_config,
+        target_config=target_config,
+        project_root=root,
+    )
+
+    config = AppConfig.load(root, target_config)
+    assert config.paths.storage_path == str(legacy_storage)
+    shutil.rmtree(root)
+
+
+def test_startup_command_uses_desktop_runner():
+    root = runtime_dir()
+    command = startup_command(root, root / "config.json")
+
+    assert "start_desktop.py" in command
+    assert str(root / "config.json") in command
+    shutil.rmtree(root)
 
 
 def test_database_round_trip():
