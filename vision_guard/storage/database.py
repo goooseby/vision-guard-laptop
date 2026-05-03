@@ -78,15 +78,32 @@ class EventDatabase:
         )
         return self.create_event(record)
 
-    def list_events(self, limit: int = 200) -> list[EventRecord]:
+    def list_events(
+        self,
+        limit: int = 500,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[EventRecord]:
+        where: list[str] = []
+        params: list[object] = []
+        if date_from:
+            where.append("triggered_at >= ?")
+            params.append(date_from)
+        if date_to:
+            where.append("triggered_at <= ?")
+            params.append(date_to)
+        where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+        params.append(limit)
         with self._lock:
             rows = self._conn.execute(
-                """
+                f"""
                 SELECT * FROM events
+                {where_sql}
                 ORDER BY triggered_at DESC, id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                params,
             ).fetchall()
         return [row_to_event(row) for row in rows]
 
@@ -97,6 +114,12 @@ class EventDatabase:
                 (event_id,),
             ).fetchone()
         return row_to_event(row) if row else None
+
+    def delete_event(self, event_id: str) -> bool:
+        with self._lock:
+            cursor = self._conn.execute("DELETE FROM events WHERE event_id = ?", (event_id,))
+            self._conn.commit()
+        return cursor.rowcount > 0
 
     def stats(self) -> dict[str, int]:
         with self._lock:

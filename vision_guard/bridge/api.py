@@ -40,17 +40,25 @@ class BridgeApi:
         return {"ok": True, "status": self.app.engine.disarm()}
 
     def list_events(self) -> dict[str, Any]:
+        return self.list_events_filtered({})
+
+    def list_events_filtered(self, filters: dict[str, Any]) -> dict[str, Any]:
         events = []
-        for event in self.app.database.list_events():
-            payload = event.to_dict()
-            video_path = self._resolve(event.video_path)
-            thumbnail_path = self._resolve(event.thumbnail_path)
-            payload["video_exists"] = video_path.exists() if event.video_path else False
-            payload["thumbnail_exists"] = thumbnail_path.exists() if event.thumbnail_path else False
+        for payload in self.app.events.list_events(filters):
+            thumbnail_path = self._resolve(payload.get("thumbnail_path", ""))
             payload["thumbnail_data_url"] = self._thumbnail_data_url(thumbnail_path)
-            payload["file_name"] = video_path.name if event.video_path else ""
             events.append(payload)
-        return {"ok": True, "events": events, "stats": self.app.database.stats()}
+        return {"ok": True, "events": events, "stats": self.app.events.stats()}
+
+    def get_storage_stats(self) -> dict[str, Any]:
+        return {"ok": True, "stats": self.app.events.stats()}
+
+    def delete_events(self, event_ids: list[str]) -> dict[str, Any]:
+        result = self.app.events.delete_events([str(event_id) for event_id in event_ids])
+        return {"ok": True, "result": result.to_dict(), "stats": self.app.events.stats()}
+
+    def cleanup_events(self, mode: str = "configured") -> dict[str, Any]:
+        return {"ok": True, **self.app.events.cleanup(mode=mode)}
 
     def open_video(self, event_id: str) -> dict[str, Any]:
         event = self.app.database.get_event(event_id)

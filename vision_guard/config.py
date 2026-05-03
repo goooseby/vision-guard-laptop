@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CameraConfig(BaseModel):
@@ -28,6 +28,20 @@ class MotionConfig(BaseModel):
     motion_sensitivity: int = Field(default=2500, ge=1)
     min_contour_area: int = Field(default=600, ge=1)
     threshold_value: int = Field(default=25, ge=1, le=255)
+    roi_enabled: bool = False
+    roi_x: float = Field(default=0.0, ge=0.0, le=1.0)
+    roi_y: float = Field(default=0.0, ge=0.0, le=1.0)
+    roi_width: float = Field(default=1.0, ge=0.01, le=1.0)
+    roi_height: float = Field(default=1.0, ge=0.01, le=1.0)
+    heatmap_enabled: bool = True
+
+    @model_validator(mode="after")
+    def roi_must_stay_inside_frame(self) -> MotionConfig:
+        if self.roi_x + self.roi_width > 1.0:
+            raise ValueError("roi_x + roi_width must be <= 1")
+        if self.roi_y + self.roi_height > 1.0:
+            raise ValueError("roi_y + roi_height must be <= 1")
+        return self
 
 
 class RecordingConfig(BaseModel):
@@ -40,6 +54,13 @@ class RecordingConfig(BaseModel):
 class PathConfig(BaseModel):
     storage_path: str = "storage"
     log_path: str = "logs"
+
+
+class RetentionConfig(BaseModel):
+    auto_cleanup_enabled: bool = False
+    cleanup_on_start: bool = False
+    retention_days: int = Field(default=30, ge=1, le=3650)
+    max_storage_gb: float = Field(default=5, ge=0.1, le=1024)
 
 
 class UiConfig(BaseModel):
@@ -59,6 +80,7 @@ class AppConfig(BaseModel):
     motion: MotionConfig = Field(default_factory=MotionConfig)
     recording: RecordingConfig = Field(default_factory=RecordingConfig)
     paths: PathConfig = Field(default_factory=PathConfig)
+    retention: RetentionConfig = Field(default_factory=RetentionConfig)
     ui: UiConfig = Field(default_factory=UiConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
 

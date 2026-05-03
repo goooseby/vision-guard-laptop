@@ -54,6 +54,13 @@ class EngineSnapshot:
     preview_available: bool
     preview_active: bool
     capture_fps: int
+    motion_score: float
+    motion_score_ratio: float
+    motion_threshold: int
+    motion_active: bool
+    motion_updated_at: str | None
+    motion_roi: dict[str, float]
+    heatmap_boxes: list[dict[str, float]]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

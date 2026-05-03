@@ -77,6 +77,8 @@
             </header>
             <div class="camera-stage" id="cameraStage">
               <img id="previewImage" alt="摄像头实时画面">
+              <div class="heatmap-layer" id="heatmapLayer"></div>
+              <div class="roi-overlay" id="roiOverlay"></div>
               <div class="preview-overlay" id="previewOverlay">
                 <strong>预览关闭</strong>
                 <span>打开开关后，将从后台捕捉引擎读取实时画面。</span>
@@ -86,6 +88,16 @@
               <span id="previewFpsText">上限 - FPS</span>
               <span id="previewFrameText">等待帧</span>
             </footer>
+            <div class="motion-meter">
+              <div>
+                <span>运动分数</span>
+                <strong id="motionScoreText">0 / 2500</strong>
+              </div>
+              <div class="motion-bar">
+                <span id="motionGaugeBar"></span>
+              </div>
+              <span id="motionUpdatedText">-</span>
+            </div>
           </section>
         </div>
 
@@ -121,7 +133,50 @@
             <h2>事件时间线</h2>
             <p>按触发时间倒序展示本地保存的安全事件。</p>
           </div>
-          <button id="openStorageBtn" class="secondary">打开存储目录</button>
+          <div class="inline-actions">
+            <button id="deleteSelectedBtn" class="secondary">删除选中</button>
+            <button id="cleanupBtn" class="secondary">按规则清理</button>
+            <button id="openStorageBtn" class="secondary">打开存储目录</button>
+          </div>
+        </section>
+        <section class="storage-grid">
+          <article class="metric">
+            <span>事件占用</span>
+            <strong id="storageUsedText">0 B</strong>
+          </article>
+          <article class="metric">
+            <span>剩余空间</span>
+            <strong id="diskFreeText">-</strong>
+          </article>
+          <article class="metric">
+            <span>文件缺失</span>
+            <strong id="missingFilesText">0</strong>
+          </article>
+          <article class="metric">
+            <span>存储目录</span>
+            <strong id="storagePathText">-</strong>
+          </article>
+        </section>
+        <section class="filter-bar">
+          <label>
+            <span>时间范围</span>
+            <select id="eventPreset">
+              <option value="all">全部</option>
+              <option value="today">今天</option>
+              <option value="7d">最近 7 天</option>
+              <option value="30d">最近 30 天</option>
+              <option value="custom">自定义</option>
+            </select>
+          </label>
+          <label>
+            <span>开始日期</span>
+            <input id="eventDateFrom" type="date">
+          </label>
+          <label>
+            <span>结束日期</span>
+            <input id="eventDateTo" type="date">
+          </label>
+          <button id="applyFilterBtn" class="secondary">应用筛选</button>
         </section>
         <div id="eventsList" class="event-list"></div>
       </section>
@@ -130,7 +185,7 @@
         <section class="section-head">
           <div>
             <h2>运行设置</h2>
-            <p>保存后立即写入配置文件；部分摄像头参数会在下一次布防时生效。</p>
+            <p>保存后立即写入配置文件；部分摄像头参数和保存路径会在下一次布防或下一条事件时生效。</p>
           </div>
           <button id="saveSettingsBtn" class="primary">保存设置</button>
         </section>
@@ -174,10 +229,47 @@
               <span>像素差阈值</span>
               <input type="number" min="1" max="255" step="1" data-path="motion.threshold_value">
             </label>
+            <label>
+              <span>区域检测</span>
+              <select data-path="motion.roi_enabled">
+                <option value="false">全画面</option>
+                <option value="true">限定区域</option>
+              </select>
+            </label>
+            <label>
+              <span>热区叠加</span>
+              <select data-path="motion.heatmap_enabled">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+            </label>
+            <div class="roi-grid">
+              <label>
+                <span>区域 X%</span>
+                <input type="number" min="0" max="99" step="1" data-path="motion.roi_x" data-scale="percent">
+              </label>
+              <label>
+                <span>区域 Y%</span>
+                <input type="number" min="0" max="99" step="1" data-path="motion.roi_y" data-scale="percent">
+              </label>
+              <label>
+                <span>区域宽%</span>
+                <input type="number" min="1" max="100" step="1" data-path="motion.roi_width" data-scale="percent">
+              </label>
+              <label>
+                <span>区域高%</span>
+                <input type="number" min="1" max="100" step="1" data-path="motion.roi_height" data-scale="percent">
+              </label>
+            </div>
+            <button id="resetRoiBtn" class="secondary" type="button">重置检测区域</button>
           </fieldset>
 
           <fieldset>
             <legend>录像</legend>
+            <label>
+              <span>保存路径</span>
+              <input type="text" data-path="paths.storage_path">
+            </label>
             <label>
               <span>触发后秒数</span>
               <input type="number" min="1" max="300" step="1" data-path="recording.record_duration">
@@ -196,6 +288,32 @@
             <label>
               <span>冷却秒数</span>
               <input type="number" min="0" max="600" step="1" data-path="recording.cooldown_seconds">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>事件清理</legend>
+            <label>
+              <span>自动清理</span>
+              <select data-path="retention.auto_cleanup_enabled">
+                <option value="false">关闭</option>
+                <option value="true">开启</option>
+              </select>
+            </label>
+            <label>
+              <span>启动时清理</span>
+              <select data-path="retention.cleanup_on_start">
+                <option value="false">关闭</option>
+                <option value="true">开启</option>
+              </select>
+            </label>
+            <label>
+              <span>保留天数</span>
+              <input type="number" min="1" max="3650" step="1" data-path="retention.retention_days">
+            </label>
+            <label>
+              <span>最大占用 GB</span>
+              <input type="number" min="0.1" max="1024" step="0.1" data-path="retention.max_storage_gb">
             </label>
           </fieldset>
 

@@ -39,6 +39,12 @@ class MonitorEngine:
         self._last_event_at: str | None = None
         self._latest_frame: np.ndarray | None = None
         self._latest_frame_at: str | None = None
+        self._last_motion_score = 0.0
+        self._last_motion_score_ratio = 0.0
+        self._last_motion_active = False
+        self._last_motion_updated_at: str | None = None
+        self._last_motion_roi: dict[str, float] = self._configured_roi()
+        self._last_heatmap_boxes: list[dict[str, float]] = []
         self._started_at = datetime.now().astimezone().isoformat()
         self._thread: threading.Thread | None = None
 
@@ -90,6 +96,13 @@ class MonitorEngine:
                 preview_available=self._latest_frame is not None,
                 preview_active=self._preview_active,
                 capture_fps=self.config.camera.capture_fps,
+                motion_score=round(self._last_motion_score, 2),
+                motion_score_ratio=round(self._last_motion_score_ratio, 3),
+                motion_threshold=self.config.motion.motion_sensitivity,
+                motion_active=self._last_motion_active,
+                motion_updated_at=self._last_motion_updated_at,
+                motion_roi=self._normalized_roi(),
+                heatmap_boxes=list(self._last_heatmap_boxes) if self.config.motion.heatmap_enabled else [],
             )
 
     def set_preview_active(self, active: bool) -> dict[str, Any]:
@@ -116,6 +129,7 @@ class MonitorEngine:
                 "camera_ready": camera_ready,
                 "captured_at": captured_at,
                 "image": "",
+                "motion": self._motion_payload(),
             }
 
         if max_width > 0 and frame.shape[1] > max_width:
@@ -135,6 +149,7 @@ class MonitorEngine:
                 "camera_ready": camera_ready,
                 "captured_at": captured_at,
                 "image": "",
+                "motion": self._motion_payload(),
             }
 
         return {
@@ -146,6 +161,7 @@ class MonitorEngine:
             "width": int(frame.shape[1]),
             "height": int(frame.shape[0]),
             "image": base64.b64encode(encoded.tobytes()).decode("ascii"),
+            "motion": self._motion_payload(),
         }
 
     def _run(self) -> None:
@@ -161,6 +177,7 @@ class MonitorEngine:
                 camera = self._release_camera(camera)
                 self._set_camera_ready(False)
                 self._set_latest_frame(None)
+                self._reset_motion_snapshot()
                 self._set_state(EngineState.DISARMED)
                 self._sleep(0.2)
                 continue
@@ -201,8 +218,10 @@ class MonitorEngine:
                 self._sleep(self._capture_interval())
                 continue
 
-            motion_score = self._motion_score(previous_gray, current_gray)
+            motion = self._analyze_motion(previous_gray, current_gray)
+            motion_score = motion["score"]
             previous_gray = current_gray
+            self._set_motion_snapshot(motion)
             self._set_state(EngineState.ARMED)
 
             if motion_score >= self.config.motion.motion_sensitivity:
@@ -382,8 +401,13 @@ class MonitorEngine:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         return cv2.GaussianBlur(gray, (21, 21), 0)
 
-    def _motion_score(self, previous_gray: np.ndarray, current_gray: np.ndarray) -> float:
-        delta = cv2.absdiff(previous_gray, current_gray)
+    def _analyze_motion(self, previous_gray: np.ndarray, current_gray: np.ndarray) -> dict[str, Any]:
+        height, width = current_gray.shape[:2]
+        left, top, roi_width, roi_height = self._roi_rect(width, height)
+        previous_roi = previous_gray[top : top + roi_height, left : left + roi_width]
+        current_roi = current_gray[top : top + roi_height, left : left + roi_width]
+
+        delta = cv2.absdiff(previous_roi, current_roi)
         threshold = cv2.threshold(
             delta,
             self.config.motion.threshold_value,
@@ -393,11 +417,53 @@ class MonitorEngine:
         threshold = cv2.dilate(threshold, None, iterations=2)
         contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         total = 0.0
+        boxes: list[dict[str, float]] = []
         for contour in contours:
             area = cv2.contourArea(contour)
             if area >= self.config.motion.min_contour_area:
                 total += area
-        return total
+                x, y, box_width, box_height = cv2.boundingRect(contour)
+                boxes.append(
+                    {
+                        "x": round((left + x) / width, 4),
+                        "y": round((top + y) / height, 4),
+                        "width": round(box_width / width, 4),
+                        "height": round(box_height / height, 4),
+                        "score": round(float(area), 2),
+                    }
+                )
+
+        boxes.sort(key=lambda item: item["score"], reverse=True)
+        threshold_score = max(1, self.config.motion.motion_sensitivity)
+        return {
+            "score": float(total),
+            "ratio": min(1.0, float(total) / threshold_score),
+            "active": total >= self.config.motion.motion_sensitivity,
+            "roi": self._normalized_roi(),
+            "boxes": boxes[:8] if self.config.motion.heatmap_enabled else [],
+        }
+
+    def _roi_rect(self, width: int, height: int) -> tuple[int, int, int, int]:
+        roi = self._normalized_roi()
+        left = min(width - 1, max(0, int(round(roi["x"] * width))))
+        top = min(height - 1, max(0, int(round(roi["y"] * height))))
+        right = min(width, max(left + 1, int(round((roi["x"] + roi["width"]) * width))))
+        bottom = min(height, max(top + 1, int(round((roi["y"] + roi["height"]) * height))))
+        return left, top, right - left, bottom - top
+
+    def _normalized_roi(self) -> dict[str, float]:
+        if not self.config.motion.roi_enabled:
+            return {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}
+        return self._configured_roi()
+
+    def _configured_roi(self) -> dict[str, float]:
+        motion = self.config.motion
+        return {
+            "x": round(float(motion.roi_x), 4),
+            "y": round(float(motion.roi_y), 4),
+            "width": round(float(motion.roi_width), 4),
+            "height": round(float(motion.roi_height), 4),
+        }
 
     def _resize_if_needed(self, frame: np.ndarray, width: int, height: int) -> np.ndarray:
         if frame.shape[1] == width and frame.shape[0] == height:
@@ -441,6 +507,36 @@ class MonitorEngine:
     def _set_recording(self, recording: bool) -> None:
         with self._lock:
             self._recording = recording
+
+    def _set_motion_snapshot(self, motion: dict[str, Any]) -> None:
+        with self._lock:
+            self._last_motion_score = float(motion["score"])
+            self._last_motion_score_ratio = float(motion["ratio"])
+            self._last_motion_active = bool(motion["active"])
+            self._last_motion_updated_at = datetime.now().astimezone().isoformat()
+            self._last_motion_roi = dict(motion["roi"])
+            self._last_heatmap_boxes = list(motion["boxes"])
+
+    def _reset_motion_snapshot(self) -> None:
+        with self._lock:
+            self._last_motion_score = 0.0
+            self._last_motion_score_ratio = 0.0
+            self._last_motion_active = False
+            self._last_motion_updated_at = None
+            self._last_motion_roi = self._normalized_roi()
+            self._last_heatmap_boxes = []
+
+    def _motion_payload(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "score": round(self._last_motion_score, 2),
+                "ratio": round(self._last_motion_score_ratio, 3),
+                "threshold": self.config.motion.motion_sensitivity,
+                "active": self._last_motion_active,
+                "updated_at": self._last_motion_updated_at,
+                "roi": self._normalized_roi(),
+                "boxes": list(self._last_heatmap_boxes) if self.config.motion.heatmap_enabled else [],
+            }
 
     def _set_error(self, message: str) -> None:
         with self._lock:

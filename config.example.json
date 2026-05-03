@@ -9,7 +9,13 @@
   "motion": {
     "motion_sensitivity": 2500,
     "min_contour_area": 600,
-    "threshold_value": 25
+    "threshold_value": 25,
+    "roi_enabled": false,
+    "roi_x": 0.0,
+    "roi_y": 0.0,
+    "roi_width": 1.0,
+    "roi_height": 1.0,
+    "heatmap_enabled": true
   },
   "recording": {
     "record_duration": 10,
@@ -20,6 +26,12 @@
   "paths": {
     "storage_path": "storage",
     "log_path": "logs"
+  },
+  "retention": {
+    "auto_cleanup_enabled": false,
+    "cleanup_on_start": false,
+    "retention_days": 30,
+    "max_storage_gb": 5
   },
   "ui": {
     "window_width": 1180,
