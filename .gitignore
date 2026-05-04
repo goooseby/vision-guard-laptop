@@ -13,3 +13,6 @@ tests_runtime/
 config.local.json
 .vscode/
 *.tmp
+build/
+dist/
+*.spec
