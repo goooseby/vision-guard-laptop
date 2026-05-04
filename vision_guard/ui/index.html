@@ -202,7 +202,10 @@
             </div>
             <button type="button" class="settings-nav-item active" data-settings-target="cameraSettings">摄像头</button>
             <button type="button" class="settings-nav-item" data-settings-target="motionSettings">运动检测</button>
-            <button type="button" class="settings-nav-item" data-settings-target="storageSettings">存储与通知</button>
+            <button type="button" class="settings-nav-item" data-settings-target="recordingSettings">录像策略</button>
+            <button type="button" class="settings-nav-item" data-settings-target="storageSettings">事件存储</button>
+            <button type="button" class="settings-nav-item" data-settings-target="desktopSettings">桌面行为</button>
+            <button type="button" class="settings-nav-item" data-settings-target="appearanceSettings">界面与调试</button>
           </aside>
 
           <div class="settings-content">
@@ -287,30 +290,11 @@
               <button id="resetRoiBtn" class="secondary" type="button">重置检测区域</button>
             </section>
 
-            <section id="storageSettings" class="setting-section">
+            <section id="recordingSettings" class="setting-section">
               <header>
-                <h3>存储与通知</h3>
-                <p>管理事件保存、自动清理、桌面常驻和启动行为。新安装默认使用系统用户数据目录。</p>
+                <h3>录像策略</h3>
+                <p>控制事件视频的录制时长、预录制缓冲和触发后的冷却节奏。</p>
               </header>
-              <div class="runtime-paths">
-                <div>
-                  <span>配置文件</span>
-                  <strong id="configPathText">-</strong>
-                </div>
-                <div>
-                  <span>数据目录</span>
-                  <strong id="dataRootText">-</strong>
-                </div>
-                <div>
-                  <span>日志目录</span>
-                  <strong id="logRootText">-</strong>
-                </div>
-              </div>
-              <label class="setting-item">
-                <strong>保存路径</strong>
-                <span>事件录像、缩略图和数据库的保存位置。相对路径会基于系统数据目录解析。</span>
-                <input type="text" data-path="paths.storage_path">
-              </label>
               <label class="setting-item">
                 <strong>触发后秒数</strong>
                 <span>检测触发后继续录制的时长。</span>
@@ -333,6 +317,32 @@
                 <strong>冷却秒数</strong>
                 <span>事件保存后短暂忽略新触发，避免连续生成重复事件。</span>
                 <input type="number" min="0" max="600" step="1" data-path="recording.cooldown_seconds">
+              </label>
+            </section>
+
+            <section id="storageSettings" class="setting-section">
+              <header>
+                <h3>事件存储</h3>
+                <p>管理事件文件保存位置、磁盘保留规则和运行路径。新安装默认使用系统用户数据目录。</p>
+              </header>
+              <div class="runtime-paths">
+                <div>
+                  <span>配置文件</span>
+                  <strong id="configPathText">-</strong>
+                </div>
+                <div>
+                  <span>数据目录</span>
+                  <strong id="dataRootText">-</strong>
+                </div>
+                <div>
+                  <span>日志目录</span>
+                  <strong id="logRootText">-</strong>
+                </div>
+              </div>
+              <label class="setting-item">
+                <strong>保存路径</strong>
+                <span>事件录像、缩略图和数据库的保存位置。相对路径会基于系统数据目录解析。</span>
+                <input type="text" data-path="paths.storage_path">
               </label>
               <label class="setting-item">
                 <strong>自动清理</strong>
@@ -360,6 +370,13 @@
                 <span>事件总占用超过该上限时，会优先清理更早的事件。</span>
                 <input type="number" min="0.1" max="1024" step="0.1" data-path="retention.max_storage_gb">
               </label>
+            </section>
+
+            <section id="desktopSettings" class="setting-section">
+              <header>
+                <h3>桌面行为</h3>
+                <p>控制应用常驻、开机自启和单实例运行方式，让它更像一个真正的桌面应用。</p>
+              </header>
               <label class="setting-item">
                 <strong>开机自启</strong>
                 <span>登录 Windows 后自动启动 Laptop Sentinel。打包后会以无控制台桌面程序启动。</span>
@@ -392,6 +409,13 @@
                   <option value="false">关闭</option>
                 </select>
               </label>
+            </section>
+
+            <section id="appearanceSettings" class="setting-section">
+              <header>
+                <h3>界面与调试</h3>
+                <p>调整窗口尺寸、主题和调试输出。普通使用时建议保持调试预览关闭。</p>
+              </header>
               <label class="setting-item">
                 <strong>窗口宽度</strong>
                 <span>主窗口默认宽度。修改后通常在下次启动时体现更稳定。</span>
@@ -404,7 +428,7 @@
               </label>
               <label class="setting-item">
                 <strong>界面主题</strong>
-                <span>切换应用整体外观。设置页始终保持更克制的深色专业布局。</span>
+                <span>切换应用整体外观。设置页会跟随主题系统自动适配。</span>
                 <select data-path="ui.theme">
                   <option value="studio">Studio</option>
                   <option value="graphite">Graphite</option>

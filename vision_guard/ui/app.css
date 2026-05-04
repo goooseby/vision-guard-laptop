@@ -1,18 +1,27 @@
 :root {
   color-scheme: light;
-  --bg: #f4f6f8;
-  --sidebar: #f9fafb;
-  --workspace: #f4f6f8;
-  --panel: #ffffff;
-  --panel-2: #f7f9fc;
-  --panel-3: #eef2f6;
-  --line: #d9e0e8;
-  --line-soft: #e8edf3;
-  --text: #18212f;
-  --muted: #637386;
-  --subtle: #8a98a8;
+
+  /* Theme foundation tokens. Components should consume semantic aliases below. */
+  --surface-app: #f4f6f8;
+  --surface-sidebar: #f9fafb;
+  --surface-workspace: #f4f6f8;
+  --surface-panel: #ffffff;
+  --surface-panel-muted: #f7f9fc;
+  --surface-control: #ffffff;
+  --surface-control-muted: #eef2f6;
+  --surface-control-hover: #e9eff7;
+  --surface-preview: #101820;
+  --surface-backdrop: rgba(0, 0, 0, .18);
+  --border-default: #d9e0e8;
+  --border-subtle: #e8edf3;
+  --border-on-panel: #d9e0e8;
+  --text-primary: #18212f;
+  --text-secondary: #637386;
+  --text-tertiary: #8a98a8;
+  --text-inverse: #ffffff;
   --accent: #2f6fed;
   --accent-2: #1f9d8a;
+  --accent-contrast: #ffffff;
   --danger: #c2414b;
   --warning: #a16207;
   --ok: #15803d;
@@ -20,53 +29,99 @@
   --soft-shadow: 0 10px 24px rgba(20, 31, 46, .06);
   --radius-lg: 14px;
   --radius-md: 10px;
-  --preview-bg: #101820;
+
+  /* Backward-compatible aliases for the existing UI surface. */
+  --bg: var(--surface-app);
+  --sidebar: var(--surface-sidebar);
+  --workspace: var(--surface-workspace);
+  --panel: var(--surface-panel);
+  --panel-2: var(--surface-panel-muted);
+  --panel-3: var(--surface-control-muted);
+  --line: var(--border-default);
+  --line-soft: var(--border-subtle);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --subtle: var(--text-tertiary);
+  --preview-bg: var(--surface-preview);
+
+  /* Component semantic tokens. New UI should use these first. */
+  --control-bg: var(--surface-control);
+  --control-bg-muted: var(--surface-control-muted);
+  --control-border: var(--border-default);
+  --control-text: var(--text-primary);
+  --settings-bg: var(--surface-workspace);
+  --settings-text: var(--text-primary);
+  --settings-muted: var(--text-secondary);
+  --settings-subtle: var(--text-tertiary);
+  --settings-divider: var(--border-subtle);
+  --settings-nav-text: var(--text-secondary);
+  --settings-nav-active-text: var(--text-primary);
+  --settings-nav-active-bg: color-mix(in srgb, var(--accent) 10%, transparent);
+  --settings-control-bg: var(--surface-control);
+  --settings-control-text: var(--text-primary);
+  --settings-control-border: var(--border-default);
+  --settings-button-bg: var(--surface-panel-muted);
+  --settings-button-text: var(--text-primary);
 }
 
 body[data-theme="graphite"] {
   color-scheme: dark;
-  --bg: #111418;
-  --sidebar: #151a20;
-  --workspace: #111418;
-  --panel: #1b222b;
-  --panel-2: #202833;
-  --panel-3: #26313e;
-  --line: #354252;
-  --line-soft: #293442;
-  --text: #eef2f6;
-  --muted: #a5b0bd;
-  --subtle: #788696;
+  --surface-app: #111418;
+  --surface-sidebar: #151a20;
+  --surface-workspace: #111418;
+  --surface-panel: #1b222b;
+  --surface-panel-muted: #202833;
+  --surface-control: #1b222b;
+  --surface-control-muted: #26313e;
+  --surface-control-hover: #252f3c;
+  --surface-preview: #090d12;
+  --surface-backdrop: rgba(0, 0, 0, .24);
+  --border-default: #354252;
+  --border-subtle: #293442;
+  --border-on-panel: rgba(255, 255, 255, .08);
+  --text-primary: #eef2f6;
+  --text-secondary: #a5b0bd;
+  --text-tertiary: #788696;
+  --text-inverse: #ffffff;
   --accent: #8ab4ff;
   --accent-2: #7dd3c7;
+  --accent-contrast: #0d1320;
   --danger: #fb7185;
   --warning: #fbbf24;
   --ok: #4ade80;
   --shadow: 0 22px 60px rgba(0, 0, 0, .28);
   --soft-shadow: 0 12px 30px rgba(0, 0, 0, .22);
-  --preview-bg: #090d12;
+  --settings-button-bg: var(--surface-control-muted);
 }
 
 body[data-theme="sentinel"] {
   color-scheme: dark;
-  --bg: #0b1017;
-  --sidebar: #0f1620;
-  --workspace: #0b1017;
-  --panel: #131d2a;
-  --panel-2: #172332;
-  --panel-3: #1e2b3b;
-  --line: #294057;
-  --line-soft: #203247;
-  --text: #eef6fb;
-  --muted: #9aabba;
-  --subtle: #6f8295;
+  --surface-app: #0b1017;
+  --surface-sidebar: #0f1620;
+  --surface-workspace: #0b1017;
+  --surface-panel: #131d2a;
+  --surface-panel-muted: #172332;
+  --surface-control: #131d2a;
+  --surface-control-muted: #1e2b3b;
+  --surface-control-hover: #203247;
+  --surface-preview: #070c12;
+  --surface-backdrop: rgba(0, 0, 0, .24);
+  --border-default: #294057;
+  --border-subtle: #203247;
+  --border-on-panel: rgba(255, 255, 255, .08);
+  --text-primary: #eef6fb;
+  --text-secondary: #9aabba;
+  --text-tertiary: #6f8295;
+  --text-inverse: #ffffff;
   --accent: #2dd4bf;
   --accent-2: #38bdf8;
+  --accent-contrast: #05111a;
   --danger: #fb7185;
   --warning: #fbbf24;
   --ok: #4ade80;
   --shadow: 0 22px 58px rgba(0, 0, 0, .32);
   --soft-shadow: 0 12px 30px rgba(0, 0, 0, .22);
-  --preview-bg: #070c12;
+  --settings-button-bg: var(--surface-control-muted);
 }
 
 * { box-sizing: border-box; }
@@ -109,10 +164,13 @@ button:disabled {
 .primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 
-.secondary { background: var(--panel-2); }
+.secondary {
+  background: var(--control-bg-muted);
+  color: var(--control-text);
+}
 .ghost { background: transparent; }
 
 .link-button {
@@ -371,19 +429,19 @@ fieldset,
 
 .heat-box {
   position: absolute;
-  border: 2px solid color-mix(in srgb, var(--warning) 88%, #fff);
+  border: 2px solid color-mix(in srgb, var(--warning) 88%, var(--text-inverse));
   border-radius: 6px;
   background: color-mix(in srgb, var(--warning) 18%, transparent);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .28), 0 10px 26px rgba(0, 0, 0, .22);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-inverse) 28%, transparent), 0 10px 26px color-mix(in srgb, var(--surface-preview) 52%, transparent);
 }
 
 .roi-overlay {
   right: auto;
   bottom: auto;
-  border: 2px solid color-mix(in srgb, var(--accent) 86%, #fff);
+  border: 2px solid color-mix(in srgb, var(--accent) 86%, var(--text-inverse));
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent) 9%, transparent);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .18);
+  box-shadow: 0 0 0 9999px var(--surface-backdrop);
 }
 
 .camera-stage.roi-editable {
@@ -408,7 +466,7 @@ fieldset,
 }
 
 .preview-overlay strong {
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 18px;
 }
 
@@ -685,7 +743,7 @@ fieldset,
   gap: 12px;
   margin-bottom: 18px;
   padding: 10px 8px 18px;
-  border-bottom: 1px solid color-mix(in srgb, #ffffff 9%, transparent);
+  border-bottom: 1px solid var(--settings-divider);
 }
 
 .settings-logo img {
@@ -700,13 +758,13 @@ fieldset,
 }
 
 .settings-logo strong {
-  color: #f4f7fb;
+  color: var(--settings-text);
   font-size: 15px;
 }
 
 .settings-logo span {
   margin-top: 3px;
-  color: #8e98a6;
+  color: var(--settings-muted);
   font-size: 12px;
 }
 
@@ -716,15 +774,15 @@ fieldset,
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #a7b0bd;
+  color: var(--settings-nav-text);
   text-align: left;
   transform: none;
 }
 
 .settings-nav-item:hover,
 .settings-nav-item.active {
-  background: rgba(255, 255, 255, .07);
-  color: #f4f7fb;
+  background: var(--settings-nav-active-bg);
+  color: var(--settings-nav-active-text);
 }
 
 .settings-content {
@@ -738,8 +796,8 @@ fieldset,
   margin: -8px -10px 0;
   padding: 8px 10px 34px;
   border-radius: 10px;
-  background: #111418;
-  color: #dbe3ee;
+  background: var(--settings-bg);
+  color: var(--settings-text);
 }
 
 #settingsView .section-head {
@@ -748,11 +806,11 @@ fieldset,
 
 #settingsView .section-head h2,
 #settingsView .section-head p {
-  color: #f4f7fb;
+  color: var(--settings-text);
 }
 
 #settingsView .section-head p {
-  color: #8e98a6;
+  color: var(--settings-muted);
 }
 
 .setting-section {
@@ -766,12 +824,12 @@ fieldset,
 
 .setting-section header {
   padding: 0 0 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  border-bottom: 1px solid var(--settings-divider);
 }
 
 .setting-section h3 {
   margin: 0;
-  color: #f4f7fb;
+  color: var(--settings-text);
   font-size: 22px;
   font-weight: 720;
 }
@@ -779,7 +837,7 @@ fieldset,
 .setting-section header p {
   max-width: 760px;
   margin: 8px 0 0;
-  color: #8e98a6;
+  color: var(--settings-muted);
   font-size: 13px;
   line-height: 1.65;
 }
@@ -790,18 +848,18 @@ fieldset,
   gap: 6px 28px;
   align-items: center;
   padding: 20px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  border-bottom: 1px solid var(--settings-divider);
 }
 
 .setting-item > strong {
-  color: #edf2f7;
+  color: var(--settings-text);
   font-size: 14px;
   font-weight: 700;
 }
 
 .setting-item > span {
   grid-column: 1;
-  color: #8e98a6;
+  color: var(--settings-muted);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -828,13 +886,13 @@ fieldset,
 }
 
 .runtime-paths span {
-  color: #8e98a6;
+  color: var(--settings-muted);
   font-size: 12px;
 }
 
 .runtime-paths strong {
   min-width: 0;
-  color: #c9d2df;
+  color: var(--settings-text);
   font-size: 12px;
   font-weight: 560;
   overflow-wrap: anywhere;
@@ -842,22 +900,22 @@ fieldset,
 
 #settingsView input,
 #settingsView select {
-  border-color: transparent;
-  background: #1b222b;
-  color: #edf2f7;
+  border-color: var(--settings-control-border);
+  background: var(--settings-control-bg);
+  color: var(--settings-control-text);
 }
 
 #settingsView input:focus,
 #settingsView select:focus {
-  outline: 2px solid rgba(138, 180, 255, .28);
-  border-color: rgba(138, 180, 255, .62);
+  outline: 2px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--settings-control-border));
 }
 
 #settingsView .secondary {
   width: max-content;
-  border: 0;
-  background: #202833;
-  color: #dbe3ee;
+  border: 1px solid var(--settings-control-border);
+  background: var(--settings-button-bg);
+  color: var(--settings-button-text);
 }
 
 .roi-grid {
@@ -869,10 +927,10 @@ fieldset,
 input, select {
   width: 100%;
   height: 38px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
+  background: var(--control-bg);
+  color: var(--control-text);
   padding: 0 11px;
 }
 
