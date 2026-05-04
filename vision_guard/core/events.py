@@ -13,6 +13,8 @@ from vision_guard.storage.database import EventDatabase
 
 @dataclass(slots=True)
 class DeleteResult:
+    """Summary returned after deleting one or more event records and media files."""
+
     requested: int
     deleted_records: int
     deleted_files: int
@@ -30,6 +32,13 @@ class DeleteResult:
 
 
 class EventService:
+    """Application-level event management.
+
+    The database stores event metadata only. This service enriches records with
+    filesystem state, owns media deletion, and applies retention/capacity rules
+    so the UI does not need to understand storage internals.
+    """
+
     def __init__(self, *, database: EventDatabase, project_root: Path, config: AppConfig):
         self.database = database
         self.project_root = project_root
@@ -49,6 +58,7 @@ class EventService:
         return [self.enrich_event(event) for event in events]
 
     def enrich_event(self, event: EventRecord) -> dict[str, Any]:
+        """Attach file existence and size metadata to an event record."""
         video_path = self.resolve_path(event.video_path)
         thumbnail_path = self.resolve_path(event.thumbnail_path)
         video_size = file_size(video_path)
@@ -67,6 +77,7 @@ class EventService:
         return payload
 
     def stats(self) -> dict[str, Any]:
+        """Return database counts plus live disk usage for the active storage root."""
         events = self.database.list_events(limit=100000)
         video_bytes = 0
         thumbnail_bytes = 0
@@ -96,6 +107,7 @@ class EventService:
         }
 
     def delete_events(self, event_ids: list[str]) -> DeleteResult:
+        """Delete event rows and their media files, collecting per-event errors."""
         result = DeleteResult(
             requested=len(event_ids),
             deleted_records=0,
@@ -123,6 +135,12 @@ class EventService:
         return result
 
     def cleanup(self, *, mode: str = "configured") -> dict[str, Any]:
+        """Apply retention and capacity cleanup rules.
+
+        `configured` combines age-based retention with storage-capacity cleanup.
+        The final delete list is de-duplicated because an event may match both
+        policies.
+        """
         events = self.database.list_events(limit=100000)
         candidates: list[EventRecord] = []
 
@@ -149,6 +167,7 @@ class EventService:
         return {"candidates": len(unique_ids), "result": result.to_dict(), "stats": self.stats()}
 
     def resolve_path(self, value: str) -> Path:
+        """Resolve stored media paths against the runtime storage root."""
         if not value:
             return Path()
         path = Path(value)
@@ -170,6 +189,7 @@ class EventService:
 
 
 def file_size(path: Path) -> int:
+    """Return file size defensively; missing or inaccessible files count as zero."""
     try:
         return path.stat().st_size if path.exists() and path.is_file() else 0
     except OSError:

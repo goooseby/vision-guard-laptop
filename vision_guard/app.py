@@ -13,6 +13,8 @@ from vision_guard.storage.database import EventDatabase
 
 
 class Application:
+    """Composes configuration, storage, event services, and the monitor engine."""
+
     def __init__(self, project_root: Path, config_path: Path | None = None):
         self.project_root = project_root
         self.paths = AppPaths.resolve(project_root, config_path)
@@ -49,6 +51,7 @@ class Application:
         self.database.close()
 
     def save_config(self, config: AppConfig) -> None:
+        """Persist config and refresh services that cache runtime paths/settings."""
         self.config = config
         self.engine.config = config
         self.engine.storage_dir = config.storage_dir(self.runtime_root)

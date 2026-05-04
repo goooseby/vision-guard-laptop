@@ -24,6 +24,12 @@ STARTUP_NAME = "Laptop Sentinel"
 
 
 class SingleInstance:
+    """Small localhost listener used to prevent duplicate monitor processes.
+
+    A second process connects to the first one and sends a short wake-up message.
+    The listener then asks the existing pywebview window to show itself.
+    """
+
     def __init__(self, *, port: int, on_show: Callable[[], None]):
         self.port = port
         self.on_show = on_show
@@ -32,8 +38,10 @@ class SingleInstance:
         self._stop_event = threading.Event()
 
     def acquire(self) -> bool:
+        """Bind the instance port and start listening for future launches."""
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            # Windows otherwise allows surprising duplicate binds with SO_REUSEADDR.
             server.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         try:
             server.bind(("127.0.0.1", self.port))
@@ -52,6 +60,7 @@ class SingleInstance:
         return True
 
     def notify_existing(self) -> bool:
+        """Ask an already-running instance to reveal its window."""
         try:
             with socket.create_connection(("127.0.0.1", self.port), timeout=0.6) as client:
                 client.sendall(INSTANCE_MESSAGE)
@@ -88,6 +97,8 @@ class SingleInstance:
 
 
 class TrayController:
+    """Owns the system tray icon, menu callbacks, and status refresh thread."""
+
     def __init__(
         self,
         *,
@@ -112,6 +123,7 @@ class TrayController:
         self._stop_event = threading.Event()
 
     def start(self) -> None:
+        """Register the tray icon and menu on a background thread."""
         image = Image.open(self.icon_path)
         self._stop_event.clear()
         self._icon = pystray.Icon(
@@ -148,6 +160,7 @@ class TrayController:
         LOGGER.info("Tray icon stopped")
 
     def update(self) -> None:
+        """Refresh tray title and menu enablement from the current engine state."""
         if self._icon is None:
             return
         self._icon.title = f"Laptop Sentinel - {state_text(self.get_status())}"
@@ -213,6 +226,12 @@ def state_text(state: str) -> str:
 
 
 def startup_command(project_root: Path, config_path: Path) -> str:
+    """Build the command stored in Windows startup registration.
+
+    Packaged builds can start the frozen executable directly. Development builds
+    use `pythonw.exe` plus a small runner script so startup does not flash a
+    console window.
+    """
     if getattr(sys, "frozen", False):
         return quote_arg(Path(sys.executable))
     executable = Path(sys.executable)
@@ -231,6 +250,7 @@ def startup_command(project_root: Path, config_path: Path) -> str:
 
 
 def set_start_on_login(*, enabled: bool, command: str) -> None:
+    """Create or remove the current-user Windows Run entry."""
     if sys.platform != "win32":
         return
 

@@ -10,6 +10,14 @@ from vision_guard.core.models import EventRecord, EventStatus
 
 
 class EventDatabase:
+    """Thin SQLite wrapper for event metadata.
+
+    SQLite connections are not freely shareable across threads by default. The
+    connection is opened with `check_same_thread=False` and protected with an
+    `RLock` because UI calls and the monitor thread may access event metadata at
+    the same time.
+    """
+
     def __init__(self, db_path: Path):
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,6 +93,7 @@ class EventDatabase:
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> list[EventRecord]:
+        """List newest events first, with optional ISO timestamp filtering."""
         where: list[str] = []
         params: list[object] = []
         if date_from:
@@ -133,6 +142,7 @@ class EventDatabase:
         return result
 
     def _init_schema(self) -> None:
+        """Create the event table and timestamp index if this is a new database."""
         with self._lock:
             self._conn.execute(
                 """

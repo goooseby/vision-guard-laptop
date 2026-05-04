@@ -21,6 +21,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MonitorEngine:
+    """Owns the camera lifecycle, motion detection loop, and evidence recording.
+
+    The engine runs on a daemon thread so the pywebview UI can stay responsive.
+    Public methods only change intent or return snapshots; long-running camera
+    work remains inside `_run`.
+    """
+
     def __init__(self, *, config: AppConfig, database: EventDatabase, project_root: Path):
         self.config = config
         self.database = database
@@ -83,6 +90,7 @@ class MonitorEngine:
         return self.snapshot().to_dict()
 
     def snapshot(self) -> EngineSnapshot:
+        """Return a thread-safe, serializable view of the current engine state."""
         with self._lock:
             return EngineSnapshot(
                 state=self._state.value,
@@ -114,6 +122,12 @@ class MonitorEngine:
         return self.snapshot().to_dict()
 
     def preview_frame(self, *, max_width: int = 960, jpeg_quality: int = 78) -> dict[str, Any]:
+        """Encode the latest retained preview frame for the web UI.
+
+        Preview frames are only retained when the UI explicitly asks for them.
+        This keeps background monitoring close to the no-preview cost when the
+        window is hidden or the preview switch is off.
+        """
         with self._lock:
             preview_active = self._preview_active
             frame = None if self._latest_frame is None else self._latest_frame.copy()
@@ -165,6 +179,12 @@ class MonitorEngine:
         }
 
     def _run(self) -> None:
+        """Main monitor loop.
+
+        This loop intentionally owns `cv2.VideoCapture` end to end. The UI and
+        tray never open the camera directly, which avoids device contention and
+        keeps recording, preview, and detection on a single frame stream.
+        """
         camera: cv2.VideoCapture | None = None
         previous_gray: np.ndarray | None = None
         pre_buffer: deque[np.ndarray] = self._new_pre_buffer()
@@ -279,6 +299,7 @@ class MonitorEngine:
         trigger_frame: np.ndarray,
         motion_score: float,
     ) -> None:
+        """Persist one triggered event and keep the monitor alive on failures."""
         triggered_at = datetime.now().astimezone()
         event_id = triggered_at.strftime("EVENT_%Y%m%d_%H%M%S_%f")[:-3]
         self._set_state(EngineState.TRIGGERED)
@@ -347,6 +368,12 @@ class MonitorEngine:
         tmp_video_path: Path,
         tmp_thumbnail_path: Path,
     ) -> dict[str, float]:
+        """Write event media through temporary files before publishing them.
+
+        The UI can refresh the event list while recording is in progress, so
+        incomplete media is written as `.part.*` and atomically moved into place
+        only after video and thumbnail writes both succeed.
+        """
         height, width = trigger_frame.shape[:2]
         writer = cv2.VideoWriter(
             str(tmp_video_path),
@@ -402,6 +429,7 @@ class MonitorEngine:
         return cv2.GaussianBlur(gray, (21, 21), 0)
 
     def _analyze_motion(self, previous_gray: np.ndarray, current_gray: np.ndarray) -> dict[str, Any]:
+        """Calculate motion score and normalized heat boxes inside the active ROI."""
         height, width = current_gray.shape[:2]
         left, top, roi_width, roi_height = self._roi_rect(width, height)
         previous_roi = previous_gray[top : top + roi_height, left : left + roi_width]
@@ -444,6 +472,7 @@ class MonitorEngine:
         }
 
     def _roi_rect(self, width: int, height: int) -> tuple[int, int, int, int]:
+        """Convert normalized ROI settings into a non-empty pixel rectangle."""
         roi = self._normalized_roi()
         left = min(width - 1, max(0, int(round(roi["x"] * width))))
         top = min(height - 1, max(0, int(round(roi["y"] * height))))
@@ -471,6 +500,7 @@ class MonitorEngine:
         return cv2.resize(frame, (width, height))
 
     def _relative(self, path: Path) -> str:
+        """Store relative paths when possible, but keep absolute external paths intact."""
         try:
             return path.relative_to(self.project_root).as_posix()
         except ValueError:
@@ -499,6 +529,7 @@ class MonitorEngine:
             self._latest_frame_at = None if frame is None else datetime.now().astimezone().isoformat()
 
     def _remember_preview_frame(self, frame: np.ndarray) -> None:
+        """Copy frames for preview only while the UI is actively rendering."""
         with self._lock:
             active = self._preview_active
         if active:

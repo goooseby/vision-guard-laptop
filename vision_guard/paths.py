@@ -14,6 +14,8 @@ APP_AUTHOR = "Vision Guard"
 
 @dataclass(frozen=True, slots=True)
 class AppPaths:
+    """Resolved runtime locations for desktop and explicit-config modes."""
+
     project_root: Path
     config_path: Path
     data_root: Path
@@ -22,6 +24,7 @@ class AppPaths:
 
     @classmethod
     def resolve(cls, project_root: Path, config_path: Path | None = None) -> AppPaths:
+        """Resolve runtime paths, preserving portable behavior for `--config`."""
         if config_path is not None:
             return cls(
                 project_root=project_root,
@@ -45,6 +48,7 @@ class AppPaths:
         return path
 
     def prepare_desktop_config(self) -> None:
+        """Create desktop directories and migrate a legacy project config if needed."""
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         self.data_root.mkdir(parents=True, exist_ok=True)
         self.log_root.mkdir(parents=True, exist_ok=True)
@@ -61,6 +65,12 @@ class AppPaths:
 
 
 def migrate_legacy_config(*, legacy_config: Path, target_config: Path, project_root: Path) -> None:
+    """Move legacy project config into the desktop config location.
+
+    Existing relative `storage/` paths are converted to absolute paths when that
+    folder already exists, so historical recordings remain visible after the
+    application switches to system user directories.
+    """
     data = json.loads(legacy_config.read_text(encoding="utf-8"))
     paths = data.setdefault("paths", {})
     storage_path = paths.get("storage_path", "storage")
@@ -84,6 +94,7 @@ def resolve_relative(base: Path, value: str) -> Path:
 
 
 def runtime_locations(paths: AppPaths, config: Any) -> dict[str, Any]:
+    """Return paths displayed by the settings page."""
     return {
         "config_path": str(paths.config_path),
         "data_root": str(paths.data_root),

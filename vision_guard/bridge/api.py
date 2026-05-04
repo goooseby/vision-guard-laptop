@@ -20,6 +20,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class BridgeApi:
+    """Methods exposed to JavaScript through pywebview.
+
+    The bridge intentionally returns plain dictionaries so UI code receives
+    stable, JSON-serializable payloads and backend exceptions become actionable
+    user-facing errors instead of crashing the WebView process.
+    """
+
     def __init__(self, app: Application):
         self.app = app
 
@@ -84,6 +91,7 @@ class BridgeApi:
         }
 
     def save_config(self, patch: dict[str, Any]) -> dict[str, Any]:
+        """Validate a partial settings patch before writing the full config file."""
         current = deepcopy(self.app.config.model_dump())
         deep_update(current, patch)
         try:
@@ -143,6 +151,7 @@ def open_with_default_player(path: Path) -> None:
 
 
 def deep_update(target: dict[str, Any], patch: dict[str, Any]) -> None:
+    """Merge nested settings patches from the form into the current config dict."""
     for key, value in patch.items():
         if isinstance(value, dict) and isinstance(target.get(key), dict):
             deep_update(target[key], value)
